@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NetPrint — Network Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">NP</div>
+    <div>
+      <div class="logo-text">NetPrint</div>
+      <div class="logo-sub">Network Behavior Analyzer</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="pill-status">
+      <span class="pulse-dot"></span> Ready to capture
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="hero">
+    <h1 class="hero-title">What does a website <span class="hl">actually</span> do on your network?</h1>
+    <p class="hero-sub">Enter any URL and we'll capture its real traffic, analyze every packet, and show you exactly how it behaves — protocols used, servers contacted, data volume, and more.</p>
+  </div>
+
+  <div class="tabs-wrap">
+    <button class="tab active" id="tab-single" onclick="setMode('single')">Single Site</button>
+    <button class="tab" id="tab-compare" onclick="setMode('compare')">Compare Two Sites</button>
+  </div>
+
+  <div class="input-card">
+
+    <div id="mode-single">
+      <label class="field-label">Website URL</label>
+      <div class="input-row">
+        <input class="url-input" type="text" id="url-input"
+               placeholder="https://example.com" autocomplete="off"/>
+        <button class="btn-primary" id="btn-single" onclick="analyzeSingle()">Analyze</button>
+      </div>
+      <div class="field-hint">Enter the full URL including https://</div>
+      <div class="field-error" id="err-url"></div>
+    </div>
+
+    <div id="mode-compare" style="display:none">
+      <div class="compare-row">
+        <div class="compare-field">
+          <label class="field-label">First Website</label>
+          <input class="url-input" type="text" id="url1-input" placeholder="https://site-a.com"/>
+          <div class="field-error" id="err-url1"></div>
+        </div>
+        <div class="vs-badge">vs</div>
+        <div class="compare-field">
+          <label class="field-label">Second Website</label>
+          <input class="url-input" type="text" id="url2-input" placeholder="https://site-b.com"/>
+          <div class="field-error" id="err-url2"></div>
+        </div>
+      </div>
+      <button class="btn-primary wide" id="btn-compare" onclick="analyzeCompare()">Compare Both Sites</button>
+    </div>
+
+  </div>
+
+  <div class="progress-card" id="progress-wrap" style="display:none">
+    <div class="progress-top">
+      <div class="progress-label" id="prog-label">Starting capture...</div>
+      <div class="progress-pct" id="prog-pct">0%</div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-bar" id="prog-fill"></div>
+    </div>
+    <div class="steps-row">
+      <div class="step-item" id="step-1"><span class="step-icon">①</span> Capturing</div>
+      <div class="step-item" id="step-2"><span class="step-icon">②</span> Extracting</div>
+      <div class="step-item" id="step-3"><span class="step-icon">③</span> Fingerprinting</div>
+      <div class="step-item" id="step-4"><span class="step-icon">④</span> Classifying</div>
+    </div>
+  </div>
+
+  <div class="error-card" id="error-banner" style="display:none">
+    <span id="error-text"></span>
+    <button class="error-close" onclick="dismissError()">✕</button>
+  </div>
+
+  <div id="results" style="display:none">
+
+    <!-- Single result -->
+    <div id="single-result">
+
+      <div class="section-title">Analysis Results</div>
+
+      <div class="results-grid">
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Fingerprint Summary</span>
+            <span class="behavior-tag" id="badge-single">—</span>
+          </div>
+
+          <div class="stats-list" id="stats-single"></div>
+
+          <div class="divider"></div>
+
+          <div class="list-section">
+            <div class="list-title">DNS Queries Made</div>
+            <div class="tag-wrap" id="dns-single"></div>
+          </div>
+
+          <div class="list-section">
+            <div class="list-title">Servers Contacted</div>
+            <div class="tag-wrap" id="ips-single"></div>
+          </div>
+        </div>
+
+        <div class="charts-stack">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Protocol Breakdown</span>
+              <span class="panel-hint">What type of traffic?</span>
+            </div>
+            <div class="chart-box"><canvas id="chart-proto"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Packet Sizes</span>
+              <span class="panel-hint">Small vs large packets</span>
+            </div>
+            <div class="chart-box"><canvas id="chart-hist"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Traffic Over Time</span>
+              <span class="panel-hint">Bytes per second</span>
+            </div>
+            <div class="chart-box"><canvas id="chart-time"></canvas></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Compare result -->
+    <div id="compare-result" style="display:none">
+
+      <div class="section-title">Comparison Results</div>
+
+      <div class="compare-panels">
+        <div class="panel site-a-panel">
+          <div class="panel-header">
+            <span class="panel-title site-a-color" id="label-a">Site A</span>
+            <span class="behavior-tag" id="badge-a">—</span>
+          </div>
+          <div class="stats-list" id="stats-a"></div>
+        </div>
+
+        <div class="diff-panel" id="diff-col">
+          <div class="diff-heading">Comparison</div>
+        </div>
+
+        <div class="panel site-b-panel">
+          <div class="panel-header">
+            <span class="panel-title site-b-color" id="label-b">Site B</span>
+            <span class="behavior-tag" id="badge-b">—</span>
+          </div>
+          <div class="stats-list" id="stats-b"></div>
+        </div>
+      </div>
+
+      <div class="compare-charts-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title site-a-color">Protocol — Site A</span>
+          </div>
+          <div class="chart-box"><canvas id="chart-proto-a"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title site-b-color">Protocol — Site B</span>
+          </div>
+          <div class="chart-box"><canvas id="chart-proto-b"></canvas></div>
+        </div>
+        <div class="panel span-2">
+          <div class="panel-header">
+            <span class="panel-title">Traffic Timeline — Both Sites</span>
+            <span class="panel-hint">Blue = Site A &nbsp;·&nbsp; Coral = Site B</span>
+          </div>
+          <div class="chart-box tall"><canvas id="chart-time-compare"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  NetPrint · Network Fingerprint Analyzer · Educational Tool
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

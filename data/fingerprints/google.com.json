@@ -1,0 +1,12 @@
+{
+  "website": "http://google.com",
+  "total_packets": 475,
+  "avg_packet_size": 136.67,
+  "max_packet_size": 1514,
+  "min_packet_size": 42,
+  "tcp_packets": 84,
+  "udp_packets": 113,
+  "dns_packets": 70,
+  "unique_destinations": 8,
+  "classification": "Search/Cloud Service"
+}
